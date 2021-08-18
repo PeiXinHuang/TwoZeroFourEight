@@ -1,0 +1,384 @@
+local CsUe = CS.UnityEngine
+
+local mouseDownPos = CsUe.Vector3(0,0,0) -- 鼠标按下的位置
+local mouseUpPos = CsUe.Vector3(0,0,0) -- 鼠标抬起的位置
+local mouseMinDistance = 20 -- 鼠标移动距离大于mouseMinDistance才算滑动
+local mouseIsMoving = false -- 鼠标是否正在移动
+
+
+local array = {{},{},{},{}} -- 数据存储数组
+
+local rects = {} -- 数字格子对象数组
+
+local score = 0 -- 分数
+
+-- Lua的Awake函数
+function LuaAwake()
+    
+
+
+    -- 绑定按钮事件
+    ui_restartbtn:GetComponent("Button").onClick:AddListener(ResetGame)
+    ui_savegamebtn:GetComponent("Button").onClick:AddListener(SaveData)
+    ui_loadgamebtn:GetComponent("Button").onClick:AddListener(ReadData)
+end
+
+-- Lua的Start函数
+function LuaStart()
+
+    -- 游戏开始
+    InitArray()
+    CreateRandomNum()
+    CreateRandomNum()
+    Show2048()
+    ShowScore()
+
+end
+
+
+
+
+-- Lua的Update函数
+function LuaUpdate()
+
+    if(CsUe.Input.GetMouseButtonDown(0)) then
+        if(ChargeInGamePlane(CsUe.Input.mousePosition)) then
+            mouseDownPos = CsUe.Input.mousePosition
+            mouseIsMoving = true
+        end 
+    elseif(CsUe.Input.GetMouseButtonUp(0) and mouseIsMoving) then
+        mouseUpPos = CsUe.Input.mousePosition
+
+        -- 获取移动方向
+        local dir = ChargeDir(mouseDownPos,mouseUpPos)
+
+        -- 根据移动方向进行运算，再生成一个随机数字，之后显示2048游戏界面内容
+        if(dir) then
+            AddNum(dir) 
+            CreateRandomNum()
+            Show2048() 
+            ShowScore()
+            if(ChargeGameOver()) then
+                print("game over")
+            end
+        end
+
+        
+        mouseIsMoving = false
+    end
+
+end
+
+-- 判断鼠标按下地方是否在游戏界面
+function ChargeInGamePlane(pos)
+    local planeWidth = ui_gameplane:GetComponent("RectTransform").rect.width
+    local planeHeight = ui_gameplane:GetComponent("RectTransform").rect.height
+    local planePos = ui_gameplane.transform.position
+    if(math.abs(planePos.x - pos.x) < planeWidth/2 and math.abs(planePos.y - pos.y)<planeHeight/2) then
+        return true
+    else
+        return false
+    end
+end
+
+
+-- 判断鼠标滑动方向
+function ChargeDir(pos1,pos2)
+    
+    -- 滑动距离太短，视为没有滑动
+    if(CsUe.Vector3.Distance(pos1,pos2)<mouseMinDistance) then
+        return nil
+    end
+
+    local _moveY = pos2.y - pos1.y
+    local _moveX = pos2.x - pos1.x
+
+    if(math.abs(_moveX)>math.abs(_moveY)) then -- 左右移动
+        if(_moveX < 0) then
+            return 3 -- 向左
+        else 
+            return 4 -- 向右
+        end
+    else -- 上下移动
+        if(_moveY < 0) then
+            return 2  -- 向下
+        else
+            return 1 -- 向上
+        end
+    end
+
+end
+
+
+-- 初始化数组
+function InitArray()
+    for i=1,4 do
+        for j=1,4 do
+            array[i][j] = 0
+        end
+    end
+end
+
+
+
+
+-- 为数组内部生成随机数,在随机为0的某位数字处，生成2
+function CreateRandomNum()
+    if(IsFull()) then
+        return
+    end
+    local indexTable = {}
+    for i =1 ,4 do
+        for j =1,4 do
+            if(array[i][j] == 0) then
+                table.insert(indexTable,{i,j})
+            end
+        end
+    end
+    math.randomseed(os.time())
+    local arr = indexTable[math.random(1,#indexTable)]
+    array[arr[1]][arr[2]] = 2
+end
+
+--界面是否已经全部填满数字
+function IsFull()
+    for i = 1,4 do
+        for j = 1,4 do
+            if(array[i][j] == 0) then
+                return false
+            end
+        end
+    end
+    return true
+end
+
+
+-- 移动2048，执行函数，dir代表方向
+function AddNum(dir)
+    -- 向上移动
+    if(dir == 1) then
+        for i = 1,4 do
+            array[1][i],array[2][i],array[3][i],array[4][i] = AddFourNum({array[1][i],array[2][i],array[3][i],array[4][i]})
+        end
+    elseif(dir == 2) then
+        for i = 1,4 do
+            array[4][i],array[3][i],array[2][i],array[1][i] = AddFourNum({array[4][i],array[3][i],array[2][i],array[1][i]})
+        end
+    elseif(dir == 3) then
+        for i = 1,4 do
+            array[i][1],array[i][2],array[i][3],array[i][4] = AddFourNum({array[i][1],array[i][2],array[i][3],array[i][4]})
+        end
+    elseif(dir == 4) then
+        for i = 1,4 do
+            array[i][4],array[i][3],array[i][2],array[i][1] = AddFourNum({array[i][4],array[i][3],array[i][2],array[i][1]})
+        end
+    end
+end
+
+
+
+-- 加上某行（列）4个数，然后返回运算后的结果
+function AddFourNum(arr)
+    local new_arr = {}
+
+    --将离散的非零单元挤到一块
+    for i=1,#arr do
+        if(arr[i]~=0) then
+            table.insert(new_arr,arr[i])
+        end
+    end
+
+
+    --合并相邻单元
+    local flag = false
+    local new_arr2 = {}
+    for i=1, #new_arr do
+        if(flag) then
+            table.insert(new_arr2,2*new_arr[i])
+            flag = false
+        else
+            if(i<#new_arr and new_arr[i] == new_arr[i+1]) then
+                flag = true
+                table.insert(new_arr2,0)
+                
+            else
+                table.insert(new_arr2,new_arr[i])
+            end
+        end
+    end
+
+    --将离散的非零单元挤到一块
+    local new_arr3 = {}
+    for i=1,#new_arr2 do
+        if(new_arr2[i]~=0) then
+            table.insert(new_arr3,new_arr2[i])
+        end
+    end
+
+    -- 为结尾加0
+    for i = 1,#arr - #new_arr3 do
+        table.insert(new_arr3,0)
+    end
+
+    return new_arr3[1],new_arr3[2],new_arr3[3],new_arr3[4]
+
+end
+
+
+-- 显示2048界面
+function Show2048()
+
+    -- 删除原有的格子
+    for k,v in pairs(rects) do
+        CsUe.GameObject.Destroy(v)
+    end
+
+    -- 重新生成格子
+    for i = 1,4 do
+        for j = 1, 4 do
+            ShowRect(i,j,array[i][j])
+        end
+    end
+
+
+end
+
+-- 显示某个格子,x,y表示位置，hasNum表示是否有数字，num表示数字
+function ShowRect(x,y,num)
+
+    if(num == 0) then
+        return
+    end
+
+    local prefab = CsUe.Resources.Load("Rect" .. num)
+   
+
+    local obj = CsUe.GameObject.Instantiate(prefab,ui_gameplane.transform)
+
+    local posIndex = (x - 1) * 4 + (y - 1);
+
+    obj.transform.position = ui_gameplane.transform:GetChild(posIndex).position
+
+    table.insert(rects,obj)
+end
+
+
+-- 判断游戏是否结束
+function ChargeGameOver()
+
+
+    for i = 1,4 do
+        for j =1,4 do
+            if(ChargeCommon(i,j)) then
+                return false
+            end
+
+        end
+    end
+
+
+    return true
+
+end
+
+--判断某一个数是否为0或者周围是否有相同的数,如果是，返回true
+function ChargeCommon(row,column)
+    if(array[row][column] == 0) then
+        return true
+    end
+
+    -- 左边
+    if(colum ~= 1 and array[row][column-1] == array[row][column]) then
+        return true
+    end
+
+    -- 右边
+    if(colum ~= 4 and array[row][column+1] == array[row][column]) then
+        return true
+    end
+
+    -- 上边
+    if(row ~= 1 and array[row-1][column] == array[row][column]) then
+        return true
+    end
+
+    -- 下边
+    if(row ~= 4 and array[row+1][column] == array[row][column]) then
+        return true
+    end
+
+    return false
+
+
+end
+
+-- 显示分数
+function ShowScore()
+    score = 0
+    for i = 1,4 do
+        for j = 1,4 do
+            score = score + array[i][j]
+        end
+    end
+
+    ui_scorenum:GetComponent("Text").text = score
+end
+
+-- 重置游戏
+function ResetGame()
+    InitArray()
+    CreateRandomNum()
+    CreateRandomNum()
+    ShowScore()
+    Show2048()
+end
+
+
+-- 保存游戏数据
+function SaveData()
+    
+    
+
+    local file=io.output(CsUe.Application.streamingAssetsPath .."/GameData.txt")
+
+    for i =1,4 do
+        for j =1,4 do
+            io.write(array[i][j]..'\n')
+        end
+    end
+
+    io.flush()
+
+    io.close(file)
+
+end
+
+-- 读取数据
+function ReadData()
+    local file = io.open(CsUe.Application.streamingAssetsPath .."/GameData.txt","r");
+    local arr = {}
+    for line in file:lines() do
+        table.insert(arr,tonumber(line))
+    end
+
+    for i =1, 16-#arr do
+        table.insert(arr,0)
+    end
+
+
+    file:close()
+
+    local index = 1 
+    for i=1,4 do
+        for j=1,4 do
+            array[i][j] = arr[index]
+            index = index+1
+        end
+    end
+
+    Show2048() 
+    ShowScore()
+    if(ChargeGameOver()) then
+        print("game over")
+    end
+end
