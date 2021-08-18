@@ -32,7 +32,7 @@ function LuaStart()
     CreateRandomNum()
     Show2048()
     ShowScore()
-
+    ShowLog("游戏开始")
 end
 
 
@@ -59,7 +59,7 @@ function LuaUpdate()
             Show2048() 
             ShowScore()
             if(ChargeGameOver()) then
-                print("game over")
+                ShowLog("Game Over")
             end
         end
 
@@ -351,6 +351,7 @@ function SaveData()
 
     io.close(file)
 
+    ShowLog("Save Data Successed")
 end
 
 -- 读取数据
@@ -378,7 +379,18 @@ function ReadData()
 
     Show2048() 
     ShowScore()
+
+    ShowLog("Read Data Successed")
+
     if(ChargeGameOver()) then
-        print("game over")
+        ShowLog("Game Over")
     end
 end
+
+-- 显示提示信息
+function ShowLog(str)
+    ui_logtext:GetComponent("Text").text = str
+    -- ui_logtext:GetComponent("Text").text = ""
+end
+
+-- 清空提示信息
