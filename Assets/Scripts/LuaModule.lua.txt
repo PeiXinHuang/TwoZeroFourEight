@@ -41,6 +41,7 @@ end
 -- Lua的Update函数
 function LuaUpdate()
 
+
     if(CsUe.Input.GetMouseButtonDown(0)) then
         if(ChargeInGamePlane(CsUe.Input.mousePosition)) then
             mouseDownPos = CsUe.Input.mousePosition
@@ -59,7 +60,7 @@ function LuaUpdate()
             Show2048() 
             ShowScore()
             if(ChargeGameOver()) then
-                ShowLog("Game Over")
+                ui_gameoverpanel:SetActive(true)
             end
         end
 
@@ -383,7 +384,7 @@ function ReadData()
     ShowLog("Read Data Successed")
 
     if(ChargeGameOver()) then
-        ShowLog("Game Over")
+        ui_gameoverpanel:SetActive(true)
     end
 end
 
